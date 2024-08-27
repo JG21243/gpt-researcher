@@ -5,3 +5,6 @@ python-dotenv
 weasyprint
 json5
 loguru
+langchain
+langchain-openai
+langchain_core
