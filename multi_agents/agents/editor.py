@@ -30,6 +30,11 @@ class EditorAgent:
         human_feedback = research_state.get("human_feedback")
         max_sections = task.get("max_sections")
 
+        # Ensure the model is set correctly
+        model = task.get("model")
+        if not model:
+            raise ValueError("Model not specified or is None. Please check the task configuration.")
+
         prompt = [
             {
                 "role": "system",
@@ -57,6 +62,8 @@ class EditorAgent:
         print_agent_output(
             f"Planning an outline layout based on initial research...", agent="EDITOR"
         )
+        
+        # Pass the validated model to the call_model function
         plan = await call_model(
             prompt=prompt,
             model=task.get("model"),
@@ -112,7 +119,7 @@ class EditorAgent:
             chain.ainvoke(
                 {
                     "task": research_state.get("task"),
-                    "topic": query,  # + (f". Also: {human_feedback}" if human_feedback is not None else ""),
+                    "topic": query,
                     "title": title,
                     "headers": self.headers,
                 }
@@ -124,3 +131,4 @@ class EditorAgent:
         ]
 
         return {"research_data": research_results}
+
