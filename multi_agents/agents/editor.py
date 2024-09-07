@@ -25,15 +25,19 @@ class EditorAgent:
         """
 
         initial_research = research_state.get("initial_research")
-        task = research_state.get("task")
+        task = research_state.get("task", {})  # Default to an empty dictionary if task is None
         include_human_feedback = task.get("include_human_feedback")
         human_feedback = research_state.get("human_feedback")
-        max_sections = task.get("max_sections")
+        max_sections = task.get("max_sections", 5)  # Default to 5 sections if not specified
 
         # Ensure the model is set correctly
         model = task.get("model")
         if not model:
             raise ValueError("Model not specified or is None. Please check the task configuration.")
+
+        # Ensure initial research is not None
+        if not initial_research:
+            raise ValueError("Initial research data is missing. Please provide valid initial research data.")
 
         prompt = [
             {
@@ -62,26 +66,38 @@ class EditorAgent:
         print_agent_output(
             f"Planning an outline layout based on initial research...", agent="EDITOR"
         )
-        
+
         # Pass the validated model to the call_model function
-        plan = await call_model(
-            prompt=prompt,
-            model=task.get("model"),
-            response_format="json",
-        )
+        try:
+            plan = await call_model(
+                prompt=prompt,
+                model=model,
+                response_format="json",
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to call model: {str(e)}")
+
+        # Check if plan is None or missing required fields
+        if not plan or not isinstance(plan, dict):
+            raise ValueError("Plan generation failed. The model did not return a valid response.")
+        
+        # Default values if keys are missing
+        title = plan.get("title", "Default Title")
+        date = plan.get("date", datetime.now().strftime('%d/%m/%Y'))
+        sections = plan.get("sections", [])
 
         return {
-            "title": plan.get("title"),
-            "date": plan.get("date"),
-            "sections": plan.get("sections"),
+            "title": title,
+            "date": date,
+            "sections": sections,
         }
 
     async def run_parallel_research(self, research_state: dict):
         research_agent = ResearchAgent(self.websocket, self.stream_output, self.headers)
         reviewer_agent = ReviewerAgent(self.websocket, self.stream_output, self.headers)
         reviser_agent = ReviserAgent(self.websocket, self.stream_output, self.headers)
-        queries = research_state.get("sections")
-        title = research_state.get("title")
+        queries = research_state.get("sections", [])
+        title = research_state.get("title", "Research Title")
         human_feedback = research_state.get("human_feedback")
         workflow = StateGraph(DraftState)
 
@@ -131,4 +147,3 @@ class EditorAgent:
         ]
 
         return {"research_data": research_results}
-
